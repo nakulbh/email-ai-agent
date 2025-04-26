@@ -473,8 +473,13 @@ class EmailProcessingAgent:
             import asyncio
             try:
                 email_dict = json.loads(email_data)
-                input_data = SendEmailInput(**email_dict)
-                return asyncio.run(send_email(self.access_token, input_data))
+                to = email_dict.get('to', '')
+                subject = email_dict.get('subject', '')
+                body = email_dict.get('body', '')
+                is_draft = email_dict.get('isDraft', False)
+                cc = email_dict.get('cc', '')
+                bcc = email_dict.get('bcc', '')
+                return asyncio.run(send_email(self.access_token, to, subject, body, is_draft, cc, bcc))
             except Exception as e:
                 logger.error(f"Error in send_email: {str(e)}")
                 return f"Error in send_email: {str(e)}"
