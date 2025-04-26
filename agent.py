@@ -154,53 +154,38 @@ class SendEmailInput(BaseModel):
     cc: Optional[str] = Field(default="", description="CC recipients (comma separated)")
     bcc: Optional[str] = Field(default="", description="BCC recipients (comma separated)")
     isDraft: bool = Field(default=False, description="Whether to create a draft instead of sending")
-    parent_run_id: Optional[str] = Field(default=None, description="Parent run ID for LangSmith tracing")
-    handlers: Optional[List[Any]] = Field(default_factory=list, description="Handlers for LangSmith tracing")
-    inheritable_handlers: Optional[List[Any]] = Field(default_factory=list, description="Inheritable handlers for LangSmith tracing")
 
 @tool
-async def send_email(access_token: str, *args, **kwargs) -> str:
-    """Send an email or create a draft."""
+async def send_email(access_token: str, to: str, subject: str, body: str, isDraft: bool = False, cc: str = "", bcc: str = "") -> str:
+    """Send an email or create a draft.
+    
+    Args:
+        access_token: The OAuth access token for Gmail API
+        to: Recipient email address
+        subject: Email subject
+        body: Email body (HTML supported)
+        isDraft: Whether to create a draft instead of sending
+        cc: CC recipients (comma separated)
+        bcc: BCC recipients (comma separated)
+    
+    Returns:
+        JSON string with the API response
+    """
     try:
-        # Handle positional arguments
-        if args and len(args) >= 1:
-            # If first arg is already a SendEmailInput object
-            if isinstance(args[0], SendEmailInput):
-                input_data = args[0]
-            # Handle positional arguments (to, subject, body, isDraft)
-            elif len(args) >= 3:
-                to = args[0]
-                subject = args[1]
-                body = args[2]
-                is_draft = args[3] if len(args) > 3 else False
-                
-                input_data = SendEmailInput(
-                    to=to,
-                    subject=subject,
-                    body=body,
-                    isDraft=is_draft
-                )
-            else:
-                raise ValueError("Not enough arguments provided")
-        # Handle keyword arguments
-        elif kwargs:
-            input_data = SendEmailInput(**kwargs)
-        else:
-            raise ValueError("No arguments provided to send_email")
-            
         # Prepare data for the request
         data = {
-            "to": input_data.to,
-            "subject": input_data.subject,
-            "body": input_data.body,
-            "isDraft": input_data.isDraft
+            "to": to,
+            "subject": subject,
+            "body": body,
+            "isDraft": isDraft
         }
         
-        if hasattr(input_data, 'cc') and input_data.cc:
-            data["cc"] = input_data.cc
-        if hasattr(input_data, 'bcc') and input_data.bcc:
-            data["bcc"] = input_data.bcc
+        if cc:
+            data["cc"] = cc
+        if bcc:
+            data["bcc"] = bcc
             
+        # Make the API request
         result = await email_service_request("post", "/email", access_token, data=data)
         return json.dumps(result, indent=2)
     except Exception as e:
