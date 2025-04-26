@@ -154,6 +154,7 @@ class SendEmailInput(BaseModel):
     cc: Optional[str] = Field(default="", description="CC recipients (comma separated)")
     bcc: Optional[str] = Field(default="", description="BCC recipients (comma separated)")
     isDraft: bool = Field(default=False, description="Whether to create a draft instead of sending")
+    parent_run_id: Optional[str] = Field(default=None, description="Parent run ID for LangSmith tracing")
 
 @tool
 async def send_email(access_token: str, input_data: SendEmailInput) -> str:
