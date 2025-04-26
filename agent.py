@@ -157,40 +157,39 @@ class SendEmailInput(BaseModel):
 
 @tool
 async def send_email(access_token: str, to: str, subject: str, body: str, isDraft: bool = False, cc: str = "", bcc: str = "") -> str:
-    """Send an email or create a draft.
+    """
+    Send an email using the Gmail API.
     
     Args:
-        access_token: The OAuth access token for Gmail API
-        to: Recipient email address
-        subject: Email subject
-        body: Email body (HTML supported)
-        isDraft: Whether to create a draft instead of sending
-        cc: CC recipients (comma separated)
-        bcc: BCC recipients (comma separated)
+        access_token (str): The OAuth access token for Gmail API.
+        to (str): The recipient's email address.
+        subject (str): The subject of the email.
+        body (str): The body content of the email.
+        isDraft (bool, optional): Whether the email should be saved as a draft. Defaults to False.
+        cc (str, optional): Carbon copy recipient email addresses, comma-separated. Defaults to "".
+        bcc (str, optional): Blind carbon copy recipient email addresses, comma-separated. Defaults to "".
     
     Returns:
-        JSON string with the API response
+        str: The response from the API call, typically the message ID or confirmation.
     """
-    try:
-        # Prepare data for the request
+    async with httpx.AsyncClient() as client:
         data = {
             "to": to,
             "subject": subject,
             "body": body,
             "isDraft": isDraft
         }
-        
         if cc:
             data["cc"] = cc
         if bcc:
             data["bcc"] = bcc
-            
-        # Make the API request
-        result = await email_service_request("post", "/email", access_token, data=data)
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error(f"Error sending email: {str(e)}")
-        return f"Error sending email: {str(e)}"
+        response = await client.post(
+            EMAIL_SERVICE_URL + "/send",
+            json=data,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        response.raise_for_status()
+        return response.text
 
 @tool
 async def summarize_email_thread(access_token: str, thread_id: str) -> str:
