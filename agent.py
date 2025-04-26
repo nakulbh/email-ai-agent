@@ -159,9 +159,36 @@ class SendEmailInput(BaseModel):
     inheritable_handlers: Optional[List[Any]] = Field(default_factory=list, description="Inheritable handlers for LangSmith tracing")
 
 @tool
-async def send_email(access_token: str, input_data: SendEmailInput) -> str:
+async def send_email(access_token: str, *args, **kwargs) -> str:
     """Send an email or create a draft."""
     try:
+        # Handle positional arguments
+        if args and len(args) >= 1:
+            # If first arg is already a SendEmailInput object
+            if isinstance(args[0], SendEmailInput):
+                input_data = args[0]
+            # Handle positional arguments (to, subject, body, isDraft)
+            elif len(args) >= 3:
+                to = args[0]
+                subject = args[1]
+                body = args[2]
+                is_draft = args[3] if len(args) > 3 else False
+                
+                input_data = SendEmailInput(
+                    to=to,
+                    subject=subject,
+                    body=body,
+                    isDraft=is_draft
+                )
+            else:
+                raise ValueError("Not enough arguments provided")
+        # Handle keyword arguments
+        elif kwargs:
+            input_data = SendEmailInput(**kwargs)
+        else:
+            raise ValueError("No arguments provided to send_email")
+            
+        # Prepare data for the request
         data = {
             "to": input_data.to,
             "subject": input_data.subject,
@@ -169,9 +196,9 @@ async def send_email(access_token: str, input_data: SendEmailInput) -> str:
             "isDraft": input_data.isDraft
         }
         
-        if input_data.cc:
+        if hasattr(input_data, 'cc') and input_data.cc:
             data["cc"] = input_data.cc
-        if input_data.bcc:
+        if hasattr(input_data, 'bcc') and input_data.bcc:
             data["bcc"] = input_data.bcc
             
         result = await email_service_request("post", "/email", access_token, data=data)
