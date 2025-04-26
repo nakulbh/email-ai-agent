@@ -147,44 +147,46 @@ async def get_attachment(access_token: str, input_data: GetAttachmentInput) -> s
         logger.error(f"Error getting attachment: {str(e)}")
         return f"Error getting attachment: {str(e)}"
 
-class SendEmailInput(BaseModel):
-    to: str = Field(description="Recipient email address")
-    subject: str = Field(description="Email subject")
-    body: str = Field(description="Email body (HTML supported)")
-    cc: Optional[str] = Field(default="", description="CC recipients (comma separated)")
-    bcc: Optional[str] = Field(default="", description="BCC recipients (comma separated)")
-    isDraft: bool = Field(default=False, description="Whether to create a draft instead of sending")
-
 @tool
-async def send_email(access_token: str, input_data: SendEmailInput) -> str:
-    """
-    Send an email using the Gmail API.
+async def send_email(access_token: str, to: str, subject: str, body: str, isDraft: bool = False, cc: str = "", bcc: str = "") -> str:
+    """Send an email using the Gmail API.
     
     Args:
-        access_token (str): The OAuth access token for Gmail API.
-        input_data (SendEmailInput): Structured input containing email details.
-    
+        access_token: The OAuth access token for Gmail API
+        to: Recipient email address
+        subject: Email subject
+        body: Email body (HTML supported)
+        isDraft: Whether to create a draft instead of sending
+        cc: CC recipients (comma separated)
+        bcc: BCC recipients (comma separated)
+        
     Returns:
-        str: The response from the API call, typically the message ID or confirmation.
+        Response from the email service
     """
-    async with httpx.AsyncClient() as client:
+    try:
         data = {
-            "to": input_data.to,
-            "subject": input_data.subject,
-            "body": input_data.body,
-            "isDraft": input_data.isDraft
+            "to": to,
+            "subject": subject,
+            "body": body,
+            "isDraft": isDraft
         }
-        if input_data.cc:
-            data["cc"] = input_data.cc
-        if input_data.bcc:
-            data["bcc"] = input_data.bcc
-        response = await client.post(
-            EMAIL_SERVICE_URL + "/send",
-            json=data,
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        response.raise_for_status()
-        return response.text
+        
+        if cc:
+            data["cc"] = cc
+        if bcc:
+            data["bcc"] = bcc
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                EMAIL_SERVICE_URL + "/send",
+                json=data,
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            response.raise_for_status()
+            return f"Email {'drafted' if isDraft else 'sent'} successfully to {to}"
+    except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
+        return f"Error sending email: {str(e)}"
 
 @tool
 async def summarize_email_thread(access_token: str, thread_id: str) -> str:
@@ -467,8 +469,13 @@ class EmailProcessingAgent:
             import asyncio
             try:
                 email_dict = json.loads(email_data)
-                input_data = SendEmailInput(**email_dict)
-                return asyncio.run(send_email(self.access_token, input_data))
+                to = email_dict.get('to', '')
+                subject = email_dict.get('subject', '')
+                body = email_dict.get('body', '')
+                is_draft = email_dict.get('isDraft', False)
+                cc = email_dict.get('cc', '')
+                bcc = email_dict.get('bcc', '')
+                return asyncio.run(send_email(self.access_token, to, subject, body, is_draft, cc, bcc))
             except Exception as e:
                 logger.error(f"Error in send_email: {str(e)}")
                 return f"Error in send_email: {str(e)}"
