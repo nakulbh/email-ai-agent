@@ -20,9 +20,10 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import SystemMessage, HumanMessage
 from langchain.tools import tool
 from langchain.pydantic_v1 import BaseModel, Field
-from langsmith import Client
-from langsmith import traceable
-from langchain.callbacks.tracers.langchain import wait_for_all_tracers
+# Removed LangSmith imports to prevent parent_run_id errors
+# from langsmith import Client
+# from langsmith import traceable
+# from langchain.callbacks.tracers.langchain import wait_for_all_tracers
 from dotenv import load_dotenv
 
 # Configure logging
@@ -50,14 +51,8 @@ LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "foundmate-email-assistant")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-# Initialize LangSmith client if enabled
+# Disabled LangSmith client initialization to prevent parent_run_id attribute errors
 langsmith_client = None
-if LANGCHAIN_TRACING_V2 and LANGCHAIN_API_KEY:
-    langsmith_client = Client(
-        api_url=LANGCHAIN_ENDPOINT,
-        api_key=LANGCHAIN_API_KEY,
-        project_name=LANGCHAIN_PROJECT
-    )
 
 # Email service client
 async def email_service_request(method, path, access_token, params=None, data=None):
@@ -225,7 +220,7 @@ async def summarize_email_thread(access_token: str, thread_id: str) -> str:
         return f"Error summarizing email thread: {str(e)}"
 
 # Process attachments
-@traceable(name="process_attachments")
+# Removed @traceable decorator to fix parent_run_id errors
 async def process_attachments(attachment_data):
     """Process different types of attachments and extract content"""
     try:
@@ -314,7 +309,7 @@ async def process_attachments(attachment_data):
         return f"Error processing attachment: {str(e)}"
 
 # Email summarization function
-@traceable(name="summarize_emails")
+# Removed @traceable decorator to fix parent_run_id errors
 async def summarize_emails(emails_data):
     """Summarize a batch of emails"""
     try:
@@ -347,7 +342,7 @@ async def summarize_emails(emails_data):
         return f"Error summarizing emails: {str(e)}"
 
 # Extract insights from emails
-@traceable(name="extract_insights")
+# Removed @traceable decorator to fix parent_run_id errors
 async def extract_insights(emails_data):
     """Extract important insights, tasks, and follow-ups from emails"""
     try:
@@ -410,13 +405,9 @@ class EmailProcessingAgent:
             # Using a default fallback if needed
             self.llm = None
         
-        # Set up LangChain tracing with LangSmith only if keys are available
-        if os.getenv("LANGCHAIN_API_KEY"):
-            os.environ["LANGCHAIN_TRACING_V2"] = "true"
-            os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
-            logger.info("LangSmith tracing enabled")
-        else:
-            logger.warning("LangSmith API key not found, tracing disabled")
+        # Disable LangChain tracing to prevent parent_run_id attribute errors
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        logger.info("LangSmith tracing disabled to avoid parent_run_id errors")
         
         # Create and bind tools to methods to handle the async operations correctly
         self.search_emails_wrapper = lambda search_input: self._wrap_async_tool(search_emails, search_input)
@@ -556,7 +547,7 @@ class EmailProcessingAgent:
             logger.error(traceback.format_exc())
             raise ValueError(f"Failed to initialize agent: {str(e)}")
     
-    @traceable(name="process_email_query")
+    # Removed @traceable decorator to fix parent_run_id errors
     # Helper method to wrap async function calls
     def _wrap_async_tool(self, func, *args, **kwargs):
         import asyncio
@@ -570,7 +561,7 @@ class EmailProcessingAgent:
         finally:
             loop.close()
     
-    @traceable(name="process_email_query")
+    # Removed @traceable decorator to fix parent_run_id errors
     async def process_query(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Process a natural language query with context"""
         logger.info(f"Processing query: {context.get('query', 'No query')}")
@@ -736,7 +727,7 @@ class EmailProcessingAgent:
             return {"answer": f"Error processing query: {str(e)}"}
 
 # Helper function to create an email processing agent
-@traceable(name="create_email_agent")
+# Removed @traceable decorator to fix parent_run_id errors
 def create_email_agent(access_token: str) -> EmailProcessingAgent:
     """Create an email processing agent with the provided access token"""
     trace_id = str(uuid.uuid4())
