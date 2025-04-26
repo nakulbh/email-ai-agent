@@ -3,7 +3,7 @@ import json
 import base64
 import time
 import uuid
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 import httpx
 import asyncio
 import logging
@@ -155,7 +155,7 @@ class SendEmailInput(BaseModel):
     bcc: Optional[str] = Field(default="", description="BCC recipients (comma separated)")
     isDraft: bool = Field(default=False, description="Whether to create a draft instead of sending")
     parent_run_id: Optional[str] = Field(default=None, description="Parent run ID for LangSmith tracing")
-    handlers: Optional[List] = Field(default=None, description="Handlers for LangSmith tracing")
+    handlers: Optional[List[Any]] = Field(default_factory=list, description="Handlers for LangSmith tracing")
 
 @tool
 async def send_email(access_token: str, input_data: SendEmailInput) -> str:
