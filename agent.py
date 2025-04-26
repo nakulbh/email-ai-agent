@@ -142,34 +142,37 @@ async def get_attachment(access_token: str, input_data: GetAttachmentInput) -> s
         logger.error(f"Error getting attachment: {str(e)}")
         return f"Error getting attachment: {str(e)}"
 
+class SendEmailInput(BaseModel):
+    to: str = Field(description="Recipient email address")
+    subject: str = Field(description="Email subject")
+    body: str = Field(description="Email body content")
+    isDraft: bool = Field(default=False, description="Whether to save as draft instead of sending")
+    cc: str = Field(default="", description="CC recipients (comma separated)")
+    bcc: str = Field(default="", description="BCC recipients (comma separated)")
+
 @tool
-async def send_email(access_token: str, to: str, subject: str, body: str, isDraft: bool = False, cc: str = "", bcc: str = "") -> str:
+async def send_email(access_token: str, email_input: SendEmailInput) -> str:
     """Send an email using the Gmail API.
     
     Args:
         access_token: The OAuth access token for Gmail API
-        to: Recipient email address
-        subject: Email subject
-        body: Email body (HTML supported)
-        isDraft: Whether to create a draft instead of sending
-        cc: CC recipients (comma separated)
-        bcc: BCC recipients (comma separated)
+        email_input: The email details including recipient, subject, and body
         
     Returns:
         Response from the email service
     """
     try:
         data = {
-            "to": to,
-            "subject": subject,
-            "body": body,
-            "isDraft": isDraft
+            "to": email_input.to,
+            "subject": email_input.subject,
+            "body": email_input.body,
+            "isDraft": email_input.isDraft
         }
         
-        if cc:
-            data["cc"] = cc
-        if bcc:
-            data["bcc"] = bcc
+        if email_input.cc:
+            data["cc"] = email_input.cc
+        if email_input.bcc:
+            data["bcc"] = email_input.bcc
             
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -178,7 +181,7 @@ async def send_email(access_token: str, to: str, subject: str, body: str, isDraf
                 headers={"Authorization": f"Bearer {access_token}"}
             )
             response.raise_for_status()
-            return f"Email {'drafted' if isDraft else 'sent'} successfully to {to}"
+            return f"Email {'drafted' if email_input.isDraft else 'sent'} successfully to {email_input.to}"
     except Exception as e:
         logger.error(f"Error sending email: {str(e)}")
         return f"Error sending email: {str(e)}"
@@ -460,13 +463,15 @@ class EmailProcessingAgent:
             import asyncio
             try:
                 email_dict = json.loads(email_data)
-                to = email_dict.get('to', '')
-                subject = email_dict.get('subject', '')
-                body = email_dict.get('body', '')
-                is_draft = email_dict.get('isDraft', False)
-                cc = email_dict.get('cc', '')
-                bcc = email_dict.get('bcc', '')
-                return asyncio.run(send_email(self.access_token, to, subject, body, is_draft, cc, bcc))
+                email_input = SendEmailInput(
+                    to=email_dict.get('to', ''),
+                    subject=email_dict.get('subject', ''),
+                    body=email_dict.get('body', ''),
+                    isDraft=email_dict.get('isDraft', False),
+                    cc=email_dict.get('cc', ''),
+                    bcc=email_dict.get('bcc', '')
+                )
+                return asyncio.run(send_email(self.access_token, email_input))
             except Exception as e:
                 logger.error(f"Error in send_email: {str(e)}")
                 return f"Error in send_email: {str(e)}"
